@@ -9,6 +9,6 @@ declare module 'openport' {
     export function find(args: any) : void;
 }
 
-declare module 'wmic' {
+declare module 'ms-wmic' {
     export function execute(args: any, callback?: any) : void;
 }
