@@ -18,6 +18,7 @@
 import { InitializedEvent, StoppedEvent, OutputEvent, TerminatedEvent, 
     ContinuedEvent, LoggingDebugSession, StackFrame, Scope
 } from 'vscode-debugadapter';
+import { execute } from 'ms-wmic';
 import { DebugManager } from './manager';
 import * as fs from 'fs';
 import * as os from 'os';
@@ -28,6 +29,8 @@ import { lookup, kill } from 'ps-node';
 import * as toml from 'toml';
 import { DebugProtocol } from 'vscode-debugprotocol';
 import { Thread, Frame, VariableRef, ProjectConfig, AttachRequestArguments, RunningInfo, LaunchRequestArguments } from './model';
+
+const IS_WIN = process.platform === 'win32';
 
 export class BallerinaDebugSession extends LoggingDebugSession {
     
@@ -412,17 +415,22 @@ export class BallerinaDebugSession extends LoggingDebugSession {
         if (this._debugServer) {
             this._debugManager.kill();
             this._debugServer.kill();
-            function callBack(err: Error, resultList = [] ) {
-                resultList.forEach(( process: ChildProcess ) => {
-                    kill(process.pid);
-                });
+            if (IS_WIN) {
+                execute("cmd /c wmic.exe Process where \"Commandline like '%org.ballerinalang.launcher.Main%'\" CALL TERMINATE");
+            } else {
+                function callBack(err: Error, resultList = [] ) {
+                    resultList.forEach(( process: ChildProcess ) => {
+                        kill(process.pid);
+                    });
+                }
+                lookup(
+                    {
+                        arguments: ['org.ballerinalang.launcher.Main', ...this._executableArgs],
+                    }, 
+                    callBack
+                );
             }
-            lookup(
-                {
-                    arguments: ['org.ballerinalang.launcher.Main', ...this._executableArgs],
-                }, 
-                callBack
-            );
+
         }
         this.sendResponse(response);
     }
