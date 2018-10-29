@@ -413,25 +413,28 @@ export class BallerinaDebugSession extends LoggingDebugSession {
 
     disconnectRequest(response: DebugProtocol.DisconnectResponse, args: DebugProtocol.DisconnectArguments) {
         if (this._debugServer) {
-            this._debugManager.kill();
-            this._debugServer.kill();
             if (IS_WIN) {
-                execute("cmd /c wmic.exe Process where \"Commandline like '%org.ballerinalang.launcher.Main%'\" CALL TERMINATE");
+                execute("process where \"Commandline like '%org.ballerinalang.launcher.Main%'\" CALL TERMINATE", ()=>{
+                    this._debugManager!.kill();
+                    this._debugServer!.kill();
+                });
             } else {
-                function callBack(err: Error, resultList = [] ) {
-                    resultList.forEach(( process: ChildProcess ) => {
-                        kill(process.pid);
-                    });
-                }
+
                 lookup(
                     {
                         arguments: ['org.ballerinalang.launcher.Main', ...this._executableArgs],
                     }, 
-                    callBack
+                    (resultList: any) =>{
+                        resultList.forEach(( process: ChildProcess ) => {
+                            kill(process.pid);
+                        });
+                        this._debugManager!.kill();
+                        this._debugServer!.kill();
+                    }
                 );
             }
-
         }
+
         this.sendResponse(response);
     }
 
